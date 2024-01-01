@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_pm.h>
@@ -11,6 +12,9 @@
 #include <atomic>
 #include <iostream>
 #include <utility>
+#include <IRremoteESP8266.h>
+#include <IRac.h>
+#include <IRutils.h>
 
 #include "web.h"
 #include "wifi.h"
@@ -74,22 +78,35 @@ static void wifiTask(void* args){
     }
 }
 
-static void tempTask(void* args){
-    int64_t time = -10000;
+static void gpioTask(void* args){
+    IRac ac(GPIO_NUM_7);
+    int64_t ir = 0;
+    int64_t temp = -10000;
     for(;;){
-        if(!ws::connectServer || millis() - time < 10000){
-            continue;
+        if(ws::connectServer && millis() - temp >= 30000){
+            temp = millis();
+            ws::sendTemperature();
         }
-        time = millis();
-        ws::sendTemperature();
+        
+        /*if(millis() - ir >= 4000){
+            ir = millis();
+
+            ac.next.protocol = decode_type_t::COOLIX;
+            ac.next.mode = stdAc::opmode_t::kCool;
+            ac.next.fanspeed = stdAc::fanspeed_t::kMax;
+            ac.next.degrees = 26;
+            ac.next.power = !ac.next.power;
+            cout << "power" << (ac.next.power ? "on" : "off") << "\n";
+            ac.sendAc();
+        }*/
     }
 }
 
 extern "C" void app_main(){
-    TaskHandle_t tempHandle;
-    TaskHandle_t wifiHandle;
-    xTaskCreatePinnedToCore(wifiTask, "wifi", 10000, NULL, 1, &wifiHandle, 0);
-    xTaskCreatePinnedToCore(tempTask, "temp", 10000, NULL, 1, &tempHandle, 1);
+    uint8_t i = 0;
+    TaskHandle_t handles[2];
+    xTaskCreatePinnedToCore(wifiTask, "wifi", 10000, NULL, 1, &handles[i++], 0);
+    xTaskCreatePinnedToCore(gpioTask, "gpio", 10000, NULL, 1, &handles[i++], 1);
 
     for(;;);
 }

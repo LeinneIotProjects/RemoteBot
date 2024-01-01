@@ -12,7 +12,7 @@
 using namespace std;
 
 namespace wifi{
-    atomic<bool> connect = false;
+    atomic<bool> connect(false);
 
     static void eventHandler(void* arg, esp_event_base_t base, int32_t id, void* data){
         static int64_t start = -1;
@@ -56,39 +56,27 @@ namespace wifi{
 
     void setApMode(){
         esp_netif_create_default_wifi_ap();
-        wifi_config_t config = {
-            .ap = {
-                .ssid = "RemoteBot",
-                .password = "",
-                .ssid_len = 9,
-                .authmode = WIFI_AUTH_OPEN,
-                .max_connection = 2,
-            }
-        };
+        wifi_config_t config;
+        esp_wifi_get_config(WIFI_IF_AP, &config);
+        strcpy((char*) config.ap.ssid, "RemoteBot");
+        strcpy((char*) config.ap.password, "");
+        config.ap.ssid_len = 9;
+        config.ap.authmode = WIFI_AUTH_OPEN;
+        config.ap.max_connection = 2;
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
         ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &config));
     }
 
     void setData(string ssid, string password){
-        wifi_config_t config = {
-            .sta = {
-                .ssid = "",
-                .password = ""
-            }
-        };
+        wifi_config_t config;
+        esp_wifi_get_config(WIFI_IF_STA, &config);
         strcpy((char*) config.sta.ssid, ssid.c_str());
         strcpy((char*) config.sta.password, password.c_str());
         esp_wifi_set_config(WIFI_IF_STA, &config);
     }
     
     void clear(){
-        wifi_config_t staConfig = {
-            .sta = {
-                .ssid = "",
-                .password = "",
-            }
-        };
-        esp_wifi_set_config(WIFI_IF_STA, &staConfig);
+        setData("", "");
     }
 
     wifi_mode_t getMode(){
