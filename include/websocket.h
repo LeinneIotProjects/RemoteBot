@@ -40,13 +40,22 @@ namespace ws{
         }
     }
 
-    void sendTemperature(){
+    bool sendTemperature(){
+        uint8_t err = 0;
         uint8_t buffer[6] = {0x04}; // protocol type (0x04: temperature)
-        if(DHT11::read(GPIO_NUM_9, &buffer[1]) != ESP_OK){
-            cout << "[DHT11] 데이터가 올바르지 않습니다. 전송에 실패했습니다.\n";
-            return;
+        while(DHT11::read(GPIO_NUM_9, &buffer[1]) != ESP_OK){
+            if(++err > 3){
+                return false;
+            }
+
+            cout << "[DHT11] 데이터가 올바르지 않습니다. 다시 시도합니다.\n";
+            for(uint8_t i = 0; i < 5; ++i){
+                buffer[i + 1] = 0;
+            }
+            vTaskDelay(300 / portTICK_PERIOD_MS);
         }
         esp_websocket_client_send_bin(webSocket, (char*) buffer, 5, portMAX_DELAY);
+        return true;
     }
 
     bool isConnected(){
